@@ -249,6 +249,7 @@ class Reader:
         strs: List[str],
         file_paths: List[str],
         parallel: bool,
+        clean: bool,
         parse_morph_info: bool,
     ) -> None:
         if parallel:
@@ -258,12 +259,13 @@ class Reader:
                         self._parse_chat_str,
                         strs,
                         file_paths,
+                        [clean for _ in range(len(file_paths))],
                         [parse_morph_info for _ in range(len(file_paths))],
                     )
                 )
         else:
             self._files = collections.deque(
-                self._parse_chat_str(s, f, parse_morph_info)
+                self._parse_chat_str(s, f, clean, parse_morph_info)
                 for s, f in zip(strs, file_paths)
             )
 
@@ -951,6 +953,7 @@ class Reader:
         strs: List[str],
         ids: List[str] = None,
         parallel: bool = True,
+        clean: bool = True,
         parse_morph_info: bool = True,
     ) -> "pylangacq.Reader":
         """Instantiate a reader from in-memory CHAT data strings.
@@ -979,7 +982,7 @@ class Reader:
                 f"strs and ids must have the same size: {len(strs)} and {len(ids)}"
             )
         reader = cls()
-        reader._parse_chat_strs(strs, ids, parallel, parse_morph_info)
+        reader._parse_chat_strs(strs, ids, parallel, clean, parse_morph_info)
         return reader
 
     @classmethod
@@ -991,6 +994,7 @@ class Reader:
         exclude: str = None,
         encoding: str = _ENCODING,
         parallel: bool = True,
+        clean: bool = True,
         parse_morph_info: bool = True,
     ) -> "pylangacq.Reader":
         """Instantiate a reader from local CHAT data files.
@@ -1023,6 +1027,7 @@ class Reader:
             strs,
             paths,
             parallel=parallel,
+            clean=clean,
             parse_morph_info=parse_morph_info,
         )
 
@@ -1049,6 +1054,7 @@ class Reader:
         extension: str = _CHAT_EXTENSION,
         encoding: str = _ENCODING,
         parallel: bool = True,
+        clean: bool = True,
         parse_morph_info: bool = True,
     ) -> "pylangacq.Reader":
         """Instantiate a reader from a local directory with CHAT data files.
@@ -1079,6 +1085,7 @@ class Reader:
             exclude=exclude,
             encoding=encoding,
             parallel=parallel,
+            clean=clean,
             parse_morph_info=parse_morph_info,
         )
 
@@ -1102,6 +1109,7 @@ class Reader:
         parallel: bool = True,
         use_cached: bool = True,
         session: requests.Session = None,
+        clean: bool = True,
         parse_morph_info: bool = True,
     ) -> "pylangacq.Reader":
         """Instantiate a reader from a local or remote ZIP file.
@@ -1152,6 +1160,7 @@ class Reader:
                 extension=extension,
                 encoding=encoding,
                 parallel=parallel,
+                clean=clean,
                 parse_morph_info=parse_morph_info,
             )
 
@@ -1441,11 +1450,11 @@ class Reader:
             with open(os.path.join(dir_, filename), "w") as f:
                 f.write(lines)
 
-    def _parse_chat_str(self, chat_str, file_path, parse_morph_info) -> _File:
+    def _parse_chat_str(self, chat_str, file_path, clean, parse_morph_info) -> _File:
         lines = self._get_lines(chat_str)
         header = self._get_header(lines)
         all_tiers = self._get_all_tiers(lines)
-        utterances = self._get_utterances(all_tiers, parse_morph_info)
+        utterances = self._get_utterances(all_tiers, clean, parse_morph_info)
         return _File(file_path, header, utterances)
 
     def _get_participant_code(self, tier_markers: Iterable[str]) -> Union[str, None]:
@@ -1457,6 +1466,7 @@ class Reader:
     def _get_utterances(
         self,
         all_tiers: Iterable[Dict[str, str]],
+        clean: bool = True,
         parse_morph_info: bool = True,
     ) -> List[Utterance]:
         result_list = []
@@ -1468,7 +1478,9 @@ class Reader:
                 continue
 
             # get the plain words from utterance tier
-            utterance_line = _clean_utterance(tiermarker_to_line[participant_code])
+            utterance_line = tiermarker_to_line[participant_code]
+            if clean:
+                utterance_line = _clean_utterance(utterance_line)
             forms = utterance_line.split()
 
             # %mor tier
@@ -1824,6 +1836,7 @@ def read_chat(
     match: str = None,
     exclude: str = None,
     encoding: str = _ENCODING,
+    clean: bool = True,
     parse_morph_info: bool = True,
     cls: type = Reader,
 ) -> "pylangacq.Reader":
@@ -1871,6 +1884,7 @@ def read_chat(
             match=match,
             exclude=exclude,
             encoding=encoding,
+            clean=clean,
             parse_morph_info=parse_morph_info,
         )
     elif os.path.isdir(path):
@@ -1879,6 +1893,7 @@ def read_chat(
             match=match,
             exclude=exclude,
             encoding=encoding,
+            clean=clean,
             parse_morph_info=parse_morph_info,
         )
     elif path_lower.endswith(_CHAT_EXTENSION):
@@ -1887,6 +1902,7 @@ def read_chat(
             match=match,
             exclude=exclude,
             encoding=encoding,
+            clean=clean,
             parse_morph_info=parse_morph_info,
         )
     else:
