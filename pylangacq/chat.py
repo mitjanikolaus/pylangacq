@@ -245,26 +245,16 @@ class Reader:
         self._files = collections.deque()
 
     def _parse_chat_strs(
-        self,
-        strs: List[str],
-        file_paths: List[str],
-        parallel: bool,
-        parse_morph_info: bool,
+        self, strs: List[str], file_paths: List[str], parallel: bool
     ) -> None:
         if parallel:
             with cf.ProcessPoolExecutor() as executor:
                 self._files = collections.deque(
-                    executor.map(
-                        self._parse_chat_str,
-                        strs,
-                        file_paths,
-                        [parse_morph_info for _ in range(len(file_paths))],
-                    )
+                    executor.map(self._parse_chat_str, strs, file_paths)
                 )
         else:
             self._files = collections.deque(
-                self._parse_chat_str(s, f, parse_morph_info)
-                for s, f in zip(strs, file_paths)
+                self._parse_chat_str(s, f) for s, f in zip(strs, file_paths)
             )
 
     def __len__(self):
@@ -947,11 +937,7 @@ class Reader:
     @classmethod
     @_params_in_docstring("parallel")
     def from_strs(
-        cls,
-        strs: List[str],
-        ids: List[str] = None,
-        parallel: bool = True,
-        parse_morph_info: bool = True,
+        cls, strs: List[str], ids: List[str] = None, parallel: bool = True
     ) -> "pylangacq.Reader":
         """Instantiate a reader from in-memory CHAT data strings.
 
@@ -979,7 +965,7 @@ class Reader:
                 f"strs and ids must have the same size: {len(strs)} and {len(ids)}"
             )
         reader = cls()
-        reader._parse_chat_strs(strs, ids, parallel, parse_morph_info)
+        reader._parse_chat_strs(strs, ids, parallel)
         return reader
 
     @classmethod
@@ -991,7 +977,6 @@ class Reader:
         exclude: str = None,
         encoding: str = _ENCODING,
         parallel: bool = True,
-        parse_morph_info: bool = True,
     ) -> "pylangacq.Reader":
         """Instantiate a reader from local CHAT data files.
 
@@ -1019,12 +1004,7 @@ class Reader:
         else:
             strs = [_open_file(p) for p in paths]
 
-        return cls.from_strs(
-            strs,
-            paths,
-            parallel=parallel,
-            parse_morph_info=parse_morph_info,
-        )
+        return cls.from_strs(strs, paths, parallel=parallel)
 
     @staticmethod
     def _filter_file_paths(
@@ -1049,7 +1029,6 @@ class Reader:
         extension: str = _CHAT_EXTENSION,
         encoding: str = _ENCODING,
         parallel: bool = True,
-        parse_morph_info: bool = True,
     ) -> "pylangacq.Reader":
         """Instantiate a reader from a local directory with CHAT data files.
 
@@ -1079,7 +1058,6 @@ class Reader:
             exclude=exclude,
             encoding=encoding,
             parallel=parallel,
-            parse_morph_info=parse_morph_info,
         )
 
     @classmethod
@@ -1102,7 +1080,6 @@ class Reader:
         parallel: bool = True,
         use_cached: bool = True,
         session: requests.Session = None,
-        parse_morph_info: bool = True,
     ) -> "pylangacq.Reader":
         """Instantiate a reader from a local or remote ZIP file.
 
@@ -1152,7 +1129,6 @@ class Reader:
                 extension=extension,
                 encoding=encoding,
                 parallel=parallel,
-                parse_morph_info=parse_morph_info,
             )
 
         # Unzipped files from `.from_zip` have the unwieldy temp dir in the file path.
@@ -1441,11 +1417,11 @@ class Reader:
             with open(os.path.join(dir_, filename), "w") as f:
                 f.write(lines)
 
-    def _parse_chat_str(self, chat_str, file_path, parse_morph_info) -> _File:
+    def _parse_chat_str(self, chat_str, file_path) -> _File:
         lines = self._get_lines(chat_str)
         header = self._get_header(lines)
         all_tiers = self._get_all_tiers(lines)
-        utterances = self._get_utterances(all_tiers, parse_morph_info)
+        utterances = self._get_utterances(all_tiers)
         return _File(file_path, header, utterances)
 
     def _get_participant_code(self, tier_markers: Iterable[str]) -> Union[str, None]:
@@ -1454,11 +1430,7 @@ class Reader:
                 return tier_marker
         return None
 
-    def _get_utterances(
-        self,
-        all_tiers: Iterable[Dict[str, str]],
-        parse_morph_info: bool = True,
-    ) -> List[Utterance]:
+    def _get_utterances(self, all_tiers: Iterable[Dict[str, str]]) -> List[Utterance]:
         result_list = []
 
         for tiermarker_to_line in all_tiers:
@@ -1476,7 +1448,7 @@ class Reader:
             clitic_count = 0
 
             mor_items = []
-            if ("%mor" in tiermarker_to_line) and parse_morph_info:
+            if "%mor" in tiermarker_to_line:
                 mor_split = tiermarker_to_line["%mor"].split()
 
                 for j, item in enumerate(mor_split):
@@ -1824,7 +1796,6 @@ def read_chat(
     match: str = None,
     exclude: str = None,
     encoding: str = _ENCODING,
-    parse_morph_info: bool = True,
     cls: type = Reader,
 ) -> "pylangacq.Reader":
     """Create a reader of CHAT data.
@@ -1866,29 +1837,11 @@ def read_chat(
 
     path_lower = path.lower()
     if path_lower.endswith(".zip"):
-        return cls.from_zip(
-            path,
-            match=match,
-            exclude=exclude,
-            encoding=encoding,
-            parse_morph_info=parse_morph_info,
-        )
+        return cls.from_zip(path, match=match, exclude=exclude, encoding=encoding)
     elif os.path.isdir(path):
-        return cls.from_dir(
-            path,
-            match=match,
-            exclude=exclude,
-            encoding=encoding,
-            parse_morph_info=parse_morph_info,
-        )
+        return cls.from_dir(path, match=match, exclude=exclude, encoding=encoding)
     elif path_lower.endswith(_CHAT_EXTENSION):
-        return cls.from_files(
-            [path],
-            match=match,
-            exclude=exclude,
-            encoding=encoding,
-            parse_morph_info=parse_morph_info,
-        )
+        return cls.from_files([path], match=match, exclude=exclude, encoding=encoding)
     else:
         raise ValueError(
             "path is not one of the accepted choices of "
