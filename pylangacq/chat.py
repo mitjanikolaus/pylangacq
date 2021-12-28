@@ -1448,8 +1448,11 @@ class Reader:
             clitic_count = 0
 
             mor_items = []
-            if "%mor" in tiermarker_to_line:
-                mor_split = tiermarker_to_line["%mor"].split()
+            if ("%mor" in tiermarker_to_line) or ("%xmor" in tiermarker_to_line):
+                if "%mor" in tiermarker_to_line:
+                    mor_split = tiermarker_to_line["%mor"].split()
+                else:
+                    mor_split = tiermarker_to_line["%xmor"].split()
 
                 for j, item in enumerate(mor_split):
                     tilde_count = item.count("~")
