@@ -15,8 +15,6 @@
 
 from datetime import date
 
-import sphinx_rtd_theme  # noqa: F401 (imported but not used)
-
 import pylangacq
 
 # If extensions (or modules to document with autodoc) are in another directory,
@@ -42,8 +40,7 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.autosummary',
     'sphinx.ext.intersphinx',
-    'numpydoc.numpydoc',
-    "sphinx_rtd_theme",
+    'numpydoc',
     "sphinx_sitemap",
 ]
 
@@ -140,17 +137,9 @@ todo_include_todos = False
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'sphinx_rtd_theme'
+html_theme = 'furo'
 
-html_sidebars = {
-    '**': [
-        'about.html',
-        'navigation.html',
-        'relations.html',
-        'searchbox.html',
-        'donate.html',
-    ]
-}
+html_css_files = ['custom.css']
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
